@@ -1,6 +1,9 @@
 // main.dart
 import 'package:agrotech_hacakaton/core/localization/l10n/app_localizations.dart';
 import 'package:agrotech_hacakaton/screens/batches/batches_screen.dart';
+import 'package:agrotech_hacakaton/screens/graph/grow_chart_screen.dart'
+    as graph;
+import 'package:agrotech_hacakaton/screens/journal/journal_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/theme/app_theme.dart';
@@ -60,8 +63,14 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _screens = [
     BatchesScreen(),
-    ProfileScreen(),
-    SettingsScreen(),
+    graph.GrowthChartScreen(
+      measurements: [
+        graph.GrowthMeasurement(date: DateTime(2023, 6, 10), height: 2.0),
+        graph.GrowthMeasurement(date: DateTime(2023, 6, 13), height: 4.5),
+        graph.GrowthMeasurement(date: DateTime(2023, 6, 15), height: 6.0),
+      ],
+    ),
+    JournalScreen(),
   ];
 
   @override

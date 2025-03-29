@@ -9,11 +9,14 @@ android {
     namespace = "com.example.agrotech_hacakaton"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
+    compileSdkVersion(35)
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
@@ -28,7 +31,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        minSdkVersion(23)
+        
     }
+
+    dependencies {
+        // Добавляем зависимость для десугаринга
+        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    }
+
 
     buildTypes {
         release {

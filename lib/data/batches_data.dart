@@ -1,1 +1,1 @@
-final List<Map<String, String>> batches = [];
+List<Map<String, String>> batches = [];

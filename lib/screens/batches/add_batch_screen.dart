@@ -138,7 +138,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                       TextFormField(
                         controller: _locationController,
                         decoration: InputDecoration(
-                          labelText: 'Местоположение',
+                          labelText: 'Субстрат',
                           border: OutlineInputBorder(),
                         ),
                         validator:
@@ -151,7 +151,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                       TextFormField(
                         controller: _quantityController,
                         decoration: InputDecoration(
-                          labelText: 'Количество',
+                          labelText: 'Частота поливаний',
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
