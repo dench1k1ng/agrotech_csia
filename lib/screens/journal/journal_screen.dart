@@ -2,6 +2,8 @@ import 'package:agrotech_hacakaton/screens/batches/batches_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class JournalScreen extends StatefulWidget {
   final Batch batch;
@@ -15,15 +17,50 @@ class JournalScreen extends StatefulWidget {
 class _JournalScreenState extends State<JournalScreen> {
   late List<JournalEntry> _entries;
   late List<GrowthMeasurement> _growthMeasurements;
+  late SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
     _entries = List.from(widget.batch.journalEntries);
     _growthMeasurements = List.from(widget.batch.growthMeasurements);
+    _initPrefs();
   }
 
-  void _addEntry(double height, String notes) {
+  Future<void> _initPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    final savedData = _prefs.getString('journal_${widget.batch.id}');
+    if (savedData != null) {
+      final decoded = json.decode(savedData) as Map<String, dynamic>;
+      setState(() {
+        _entries =
+            (decoded['entries'] as List)
+                .map((e) => JournalEntry.fromMap(e))
+                .toList();
+        _growthMeasurements =
+            (decoded['measurements'] as List)
+                .map((e) => GrowthMeasurement.fromMap(e))
+                .toList();
+      });
+    }
+  }
+
+  Future<void> _saveData() async {
+    final dataToSave = {
+      'entries': _entries.map((e) => e.toMap()).toList(),
+      'measurements': _growthMeasurements.map((m) => m.toMap()).toList(),
+    };
+    await _prefs.setString(
+      'journal_${widget.batch.id}',
+      json.encode(dataToSave),
+    );
+  }
+
+  Future<void> _addEntry(double height, String notes) async {
     final newEntry = JournalEntry(
       date: DateTime.now(),
       height: height,
@@ -40,6 +77,18 @@ class _JournalScreenState extends State<JournalScreen> {
       _entries.add(newEntry);
       _growthMeasurements.add(newMeasurement);
     });
+
+    await _saveData();
+  }
+
+  Future<void> _deleteEntry(int index) async {
+    setState(() {
+      _entries.removeAt(index);
+      if (index < _growthMeasurements.length) {
+        _growthMeasurements.removeAt(index);
+      }
+    });
+    await _saveData();
   }
 
   void _showAddEntryDialog() async {
@@ -87,7 +136,7 @@ class _JournalScreenState extends State<JournalScreen> {
     if (result == true) {
       final height = double.tryParse(heightController.text) ?? 0.0;
       final notes = notesController.text;
-      _addEntry(height, notes);
+      await _addEntry(height, notes);
     }
   }
 
@@ -96,8 +145,7 @@ class _JournalScreenState extends State<JournalScreen> {
       return const Center(child: Text('Нет данных для построения графика'));
     }
 
-    // Сортируем измерения по дате
-    _growthMeasurements.sort((a, b) => a.date.compareTo(b!.date));
+    _growthMeasurements.sort((a, b) => a.date.compareTo(b.date));
 
     return SizedBox(
       height: 250,
@@ -172,7 +220,46 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Журнал: ${widget.batch.name}')),
+      appBar: AppBar(
+        title: Text('Журнал: ${widget.batch.name}'),
+        actions: [
+          if (_entries.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_forever),
+              tooltip: 'Очистить журнал',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder:
+                      (context) => AlertDialog(
+                        title: const Text('Очистить журнал?'),
+                        content: const Text(
+                          'Все записи будут удалены безвозвратно',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Отмена'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Очистить'),
+                          ),
+                        ],
+                      ),
+                );
+
+                if (confirm == true) {
+                  setState(() {
+                    _entries.clear();
+                    _growthMeasurements.clear();
+                  });
+                  await _saveData();
+                }
+              },
+            ),
+        ],
+      ),
       body: Column(
         children: [
           _buildGrowthChart(),
@@ -182,34 +269,67 @@ class _JournalScreenState extends State<JournalScreen> {
               itemCount: _entries.length,
               itemBuilder: (context, index) {
                 final entry = _entries[index];
-                return ListTile(
-                  title: Text(
-                    DateFormat('dd.MM.yyyy HH:mm').format(entry.date),
+                return Dismissible(
+                  key: Key('${entry.date.millisecondsSinceEpoch}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    color: Colors.red,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
                   ),
-                  subtitle: Text('Высота: ${entry.height} см'),
-                  trailing:
-                      entry.notes.isNotEmpty
-                          ? IconButton(
-                            icon: const Icon(Icons.note),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder:
-                                    (context) => AlertDialog(
-                                      title: const Text('Заметки'),
-                                      content: Text(entry.notes),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.pop(context),
-                                          child: const Text('Закрыть'),
-                                        ),
-                                      ],
-                                    ),
-                              );
-                            },
-                          )
-                          : null,
+                  confirmDismiss: (direction) async {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder:
+                          (context) => AlertDialog(
+                            title: const Text('Удалить запись?'),
+                            content: Text(
+                              'Запись от ${DateFormat('dd.MM.yyyy').format(entry.date)} будет удалена',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Отмена'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Удалить'),
+                              ),
+                            ],
+                          ),
+                    );
+                  },
+                  onDismissed: (direction) => _deleteEntry(index),
+                  child: ListTile(
+                    title: Text(
+                      DateFormat('dd.MM.yyyy HH:mm').format(entry.date),
+                    ),
+                    subtitle: Text('Высота: ${entry.height} см'),
+                    trailing:
+                        entry.notes.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.note),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: const Text('Заметки'),
+                                        content: Text(entry.notes),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(context),
+                                            child: const Text('Закрыть'),
+                                          ),
+                                        ],
+                                      ),
+                                );
+                              },
+                            )
+                            : null,
+                  ),
                 );
               },
             ),
