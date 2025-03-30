@@ -1,18 +1,24 @@
 import 'package:agrotech_hacakaton/screens/batches/batches_screen.dart';
+import 'package:agrotech_hacakaton/screens/journal/journal_screen.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
 
-class BatchDetailScreen extends StatelessWidget {
+class BatchDetailScreen extends StatefulWidget {
   final Batch batch;
 
   const BatchDetailScreen({Key? key, required this.batch}) : super(key: key);
 
   @override
+  State<BatchDetailScreen> createState() => _BatchDetailScreenState();
+}
+
+class _BatchDetailScreenState extends State<BatchDetailScreen> {
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(batch.name ?? 'Детали партии'),
+        title: Text(widget.batch.name ?? 'Детали партии'),
         backgroundColor: Colors.green[700],
         centerTitle: true,
         elevation: 0,
@@ -23,7 +29,7 @@ class BatchDetailScreen extends StatelessWidget {
           children: [
             // Карточка с изображением
             Hero(
-              tag: 'batch-image-${batch.name}',
+              tag: 'batch-image-${widget.batch.name}',
               child: Container(
                 height: 280,
                 width: double.infinity,
@@ -40,9 +46,10 @@ class BatchDetailScreen extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child:
-                      batch.imagePath != null && batch.imagePath!.isNotEmpty
+                      widget.batch.imagePath != null &&
+                              widget.batch.imagePath!.isNotEmpty
                           ? Image.file(
-                            File(batch.imagePath!),
+                            File(widget.batch.imagePath!),
                             fit: BoxFit.cover,
                           )
                           : Container(
@@ -76,55 +83,71 @@ class BatchDetailScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _buildDetailItem(Icons.local_florist, 'Название', batch.name),
+                  _buildDetailItem(
+                    Icons.local_florist,
+                    'Название',
+                    widget.batch.name,
+                  ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.calendar_today,
                     'Дата посева',
-                    batch.date,
+                    widget.batch.date,
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.access_time,
                     'Время полива',
-                    batch.wateringTime,
+                    widget.batch.wateringTime,
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.timeline,
                     'Начальная высота',
-                    batch.initialHeight.toString(),
+                    widget.batch.initialHeight.toString(),
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.event_available,
                     'Дата созревания',
-                    batch.harvestDate,
+                    widget.batch.harvestDate,
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.thermostat,
                     'Статус',
-                    batch.status,
-                    statusColor: _getStatusColor(batch.status),
+                    widget.batch.status,
+                    statusColor: _getStatusColor(widget.batch.status),
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.location_on,
                     'Местоположение',
-                    batch.location,
+                    widget.batch.location,
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.format_list_numbered,
                     'Количество',
-                    batch.quantity,
+                    widget.batch.quantity,
                   ),
                   _buildDivider(),
                   _buildDetailItem(
                     Icons.info_outline,
                     'Особые условия',
-                    batch.specialConditions,
+                    widget.batch.specialConditions,
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => JournalScreen(batch: widget.batch),
+                        ),
+                      );
+                    },
+                    child: Text('Перейти в журнал'),
                   ),
                 ],
               ),

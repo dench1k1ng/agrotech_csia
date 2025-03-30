@@ -117,256 +117,275 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
   }
 
   Future<void> _saveBatch() async {
+    // Проверка формы
     if (!_formKey.currentState!.validate()) return;
+
+    // Проверка на пустую дату посева
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Пожалуйста, выберите дату посева')),
       );
-
-      try {
-        // Здесь можно добавить сохранение в базу данных или API
-        await Future.delayed(Duration(seconds: 1)); // Имитация загрузки
-
-        Navigator.pop(context, {
-          'name': _nameController.text,
-          'date': DateFormat('dd MMM yyyy').format(_selectedDate!),
-          'harvestDate': DateFormat('dd MMM yyyy').format(_harvestDate!),
-          'status': 'Прорастает',
-          'location': _locationController.text,
-          'wateringTime': _wateringTime.format(context),
-          'initialHeight': _initialHeight,
-          'specialConditions':
-              _specialConditionsController.text, // Особые условия
-          'imagePath': _image?.path,
-        });
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка при сохранении: ${e.toString()}')),
-        );
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
+      return; // Остановим выполнение, если дата не выбрана
     }
 
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Добавить партию'),
-          backgroundColor: Colors.green[700],
-        ),
-        body:
-            _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        // Название
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Название',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator:
-                              (value) =>
-                                  value?.isEmpty ?? true
-                                      ? 'Введите название'
-                                      : null,
-                        ),
-                        SizedBox(height: 16),
-
-                        // Субстрат
-                        TextFormField(
-                          controller: _locationController,
-                          decoration: InputDecoration(
-                            labelText: 'Субстрат',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator:
-                              (value) =>
-                                  value?.isEmpty ?? true
-                                      ? 'Введите местоположение'
-                                      : null,
-                        ),
-                        SizedBox(height: 16),
-
-                        // Начальная высота
-                        TextFormField(
-                          controller: _heightController,
-                          decoration: InputDecoration(
-                            labelText: 'Начальная высота (см)',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Введите начальную высоту';
-                            }
-                            if (double.tryParse(value) == null ||
-                                double.parse(value) <= 0) {
-                              return 'Введите корректную высоту больше 0';
-                            }
-                            return null;
-                          },
-                          onChanged: (value) {
-                            setState(() {
-                              _initialHeight = double.tryParse(value) ?? 0.0;
-                            });
-                          },
-                        ),
-                        SizedBox(height: 16),
-
-                        // Дата посева
-                        InkWell(
-                          onTap: () => _selectDate(context),
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Дата посева',
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _selectedDate == null
-                                      ? 'Выберите дату'
-                                      : DateFormat(
-                                        'dd MMM yyyy',
-                                      ).format(_selectedDate!),
-                                ),
-                                Icon(Icons.calendar_today),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-
-                        // Время полива
-                        InkWell(
-                          onTap: () => _selectWateringTime(context),
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Время полива',
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_wateringTime.format(context)),
-                                Icon(Icons.access_time),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-
-                        // Дата созревания
-                        InkWell(
-                          onTap: () => _selectHarvestDate(context),
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Дата созревания',
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _harvestDate == null
-                                      ? 'Выберите дату'
-                                      : DateFormat(
-                                        'dd MMM yyyy',
-                                      ).format(_harvestDate!),
-                                ),
-                                Icon(Icons.calendar_today),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-
-                        // Особые условия
-                        TextFormField(
-                          controller: _specialConditionsController,
-                          decoration: InputDecoration(
-                            labelText: 'Особые условия',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-
-                        // Кнопка для выбора изображения
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: Icon(Icons.photo_library),
-                                label: Text('Галерея'),
-                                onPressed:
-                                    () => _pickImage(ImageSource.gallery),
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: Icon(Icons.camera_alt),
-                                label: Text('Камера'),
-                                onPressed: () => _pickImage(ImageSource.camera),
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 24),
-
-                        // Кнопка для сохранения
-                        ElevatedButton(
-                          onPressed: _saveBatch,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              'СОХРАНИТЬ',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[700],
-                            minimumSize: Size(double.infinity, 50),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+    // Проверка других обязательных полей
+    if (_nameController.text.isEmpty || _locationController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Пожалуйста, заполните все обязательные поля')),
       );
+      return; // Остановим выполнение, если поля пустые
     }
 
-    @override
-    void dispose() {
-      _nameController.dispose();
-      _locationController.dispose();
-      _heightController.dispose();
-      _specialConditionsController.dispose();
-      super.dispose();
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Здесь добавьте логику для сохранения данных в базу данных или API
+      await Future.delayed(Duration(seconds: 1)); // Имитация загрузки
+
+      // Переход на предыдущий экран с данными
+      Navigator.pop(context, {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'name': _nameController.text,
+        'date': DateFormat('dd MMM yyyy').format(_selectedDate!),
+        'harvestDate':
+            _harvestDate != null
+                ? DateFormat('dd MMM yyyy').format(_harvestDate!)
+                : 'Не указано', // Обработка пустой даты
+        'status': 'Прорастает',
+        'location': _locationController.text,
+        'wateringTime': _wateringTime.format(context),
+        'initialHeight': _initialHeight,
+        'specialConditions':
+            _specialConditionsController.text, // Особые условия
+        'imagePath': _image?.path,
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка при сохранении: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Добавить партию'),
+        backgroundColor: Colors.green[700],
+      ),
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      // Название
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Название',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator:
+                            (value) =>
+                                value?.isEmpty ?? true
+                                    ? 'Введите название'
+                                    : null,
+                      ),
+                      SizedBox(height: 16),
+
+                      // Субстрат
+                      TextFormField(
+                        controller: _locationController,
+                        decoration: InputDecoration(
+                          labelText: 'Субстрат',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator:
+                            (value) =>
+                                value?.isEmpty ?? true
+                                    ? 'Введите местоположение'
+                                    : null,
+                      ),
+                      SizedBox(height: 16),
+
+                      // Начальная высота
+                      TextFormField(
+                        controller: _heightController,
+                        decoration: InputDecoration(
+                          labelText: 'Начальная высота (см)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Введите начальную высоту';
+                          }
+                          if (double.tryParse(value) == null ||
+                              double.parse(value) <= 0) {
+                            return 'Введите корректную высоту больше 0';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          setState(() {
+                            _initialHeight = double.tryParse(value) ?? 0.0;
+                          });
+                        },
+                      ),
+                      SizedBox(height: 16),
+
+                      // Дата посева
+                      InkWell(
+                        onTap: () => _selectDate(context),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Дата посева',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _selectedDate == null
+                                    ? 'Выберите дату'
+                                    : DateFormat(
+                                      'dd MMM yyyy',
+                                    ).format(_selectedDate!),
+                              ),
+                              Icon(Icons.calendar_today),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // Время полива
+                      InkWell(
+                        onTap: () => _selectWateringTime(context),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Время полива',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(_wateringTime.format(context)),
+                              Icon(Icons.access_time),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // Дата созревания
+                      InkWell(
+                        onTap: () => _selectHarvestDate(context),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Дата созревания',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _harvestDate == null
+                                    ? 'Выберите дату'
+                                    : DateFormat(
+                                      'dd MMM yyyy',
+                                    ).format(_harvestDate!),
+                              ),
+                              Icon(Icons.calendar_today),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // Особые условия
+                      TextFormField(
+                        controller: _specialConditionsController,
+                        decoration: InputDecoration(
+                          labelText: 'Особые условия',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // Кнопка для выбора изображения
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.photo_library),
+                              label: Text('Галерея'),
+                              onPressed: () => _pickImage(ImageSource.gallery),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.camera_alt),
+                              label: Text('Камера'),
+                              onPressed: () => _pickImage(ImageSource.camera),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 24),
+
+                      // Кнопка для сохранения
+                      ElevatedButton(
+                        onPressed: _saveBatch,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'СОХРАНИТЬ',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[700],
+                          minimumSize: Size(double.infinity, 50),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+    );
   }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _locationController.dispose();
+    _heightController.dispose();
+    _specialConditionsController.dispose();
+    super.dispose();
+  }
+}
+
+@override
+Widget build(BuildContext context) {
+  throw UnimplementedError();
 }

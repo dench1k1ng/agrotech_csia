@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:convert';
-
 import 'package:agrotech_hacakaton/screens/batches/add_batch_screen.dart';
 
 class BatchesScreen extends StatefulWidget {
@@ -62,19 +61,16 @@ class _BatchesScreenState extends State<BatchesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка при добавлении: ${e.toString()}')),
       );
-      rethrow;
     }
   }
 
   Future<void> _removeBatch(int index) async {
     final removedBatch = _batches[index];
-
     try {
       setState(() {
         _batches.removeAt(index);
       });
       await _saveBatches();
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Партия "${removedBatch.name}" удалена'),
@@ -91,7 +87,6 @@ class _BatchesScreenState extends State<BatchesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка при удалении: ${e.toString()}')),
       );
-      rethrow;
     }
   }
 
@@ -104,18 +99,22 @@ class _BatchesScreenState extends State<BatchesScreen> {
       );
     } catch (e) {
       debugPrint('Error saving batches: $e');
-      rethrow;
     }
   }
 
   Future<void> _navigateToAddBatch() async {
+    // Переход на экран добавления новой партии и получение данных
     final newBatch = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(builder: (context) => AddBatchScreen()),
     );
 
+    // Если данные возвращены, добавляем партию
     if (newBatch != null) {
-      await _addBatch(Batch.fromMap(newBatch));
+      final batch = Batch.fromMap(
+        newBatch,
+      ); // Преобразуем данные в объект Batch
+      await _addBatch(batch); // Добавляем партию в список
     }
   }
 
@@ -148,7 +147,6 @@ class _BatchesScreenState extends State<BatchesScreen> {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
     if (_error != null) {
       return Center(
         child: Column(
@@ -164,7 +162,6 @@ class _BatchesScreenState extends State<BatchesScreen> {
         ),
       );
     }
-
     if (_batches.isEmpty) {
       return Center(
         child: Column(
@@ -179,7 +176,6 @@ class _BatchesScreenState extends State<BatchesScreen> {
         ),
       );
     }
-
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: GridView.builder(
@@ -209,6 +205,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) => _confirmDismiss(index),
+      onDismissed: (_) => _removeBatch(index),
       child: GestureDetector(
         onTap: () => _navigateToDetailScreen(context, batch), // Передаем Batch
         child: Card(
@@ -229,7 +226,8 @@ class _BatchesScreenState extends State<BatchesScreen> {
                     ),
                     color: Colors.grey[200],
                     image:
-                        batch.imagePath != null
+                        batch.imagePath != null &&
+                                File(batch.imagePath!).existsSync()
                             ? DecorationImage(
                               image: FileImage(File(batch.imagePath!)),
                               fit: BoxFit.cover,
@@ -309,15 +307,22 @@ class _BatchesScreenState extends State<BatchesScreen> {
     );
   }
 
-  void _navigateToDetailScreen(BuildContext context, Batch batch) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) =>
-                BatchDetailScreen(batch: batch), // Передаем объект Batch
-      ),
-    );
+  Future<void> _navigateToDetailScreen(
+    BuildContext context,
+    Batch batch,
+  ) async {
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BatchDetailScreen(batch: batch),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка навигации: ${e.toString()}')),
+      );
+    }
   }
 
   Future<bool?> _confirmDismiss(int index) async {
@@ -376,10 +381,16 @@ class _BatchesScreenState extends State<BatchesScreen> {
   }
 
   void _navigateToJournal(Batch batch) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => JournalScreen(batch: batch)),
-    );
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => JournalScreen(batch: batch)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка навигации: ${e.toString()}')),
+      );
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -401,8 +412,8 @@ class Batch {
   final double initialHeight; // Начальная высота
   final String specialConditions; // Особые условия
   final String harvestDate;
-
-  var wateringTime; // Дата созревания
+  final String wateringTime; // Дата полива
+  final List<GrowthMeasurement> growthMeasurements; // Измерения роста
 
   Batch({
     required this.journalEntries,
@@ -417,6 +428,7 @@ class Batch {
     required this.specialConditions,
     required this.harvestDate,
     this.imagePath,
+    required this.growthMeasurements,
   });
 
   factory Batch.fromMap(Map<String, dynamic> map) {
@@ -437,6 +449,11 @@ class Batch {
       specialConditions: map['specialConditions'] ?? 'Нет',
       harvestDate: map['harvestDate'] ?? 'Не указано',
       imagePath: map['imagePath'],
+      growthMeasurements:
+          (map['growthMeasurements'] as List<dynamic>?)
+              ?.map((e) => GrowthMeasurement.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -444,9 +461,17 @@ class Batch {
     return {
       'id': id,
       'name': name,
-      'journalEntries': journalEntries.map((e) => e.toMap()).toList(),
+      'date': date,
+      'status': status,
+      'location': location,
+      'quantity': quantity,
       'imagePath': imagePath,
-      'journalEntries': journalEntries.map((e) => e.toMap()).toList(),
+      'journalEntries': journalEntries.map((entry) => entry.toMap()).toList(),
+      'initialHeight': initialHeight,
+      'specialConditions': specialConditions,
+      'harvestDate': harvestDate,
+      'wateringTime': wateringTime,
+      'growthMeasurements': growthMeasurements.map((gm) => gm.toMap()).toList(),
     };
   }
 }

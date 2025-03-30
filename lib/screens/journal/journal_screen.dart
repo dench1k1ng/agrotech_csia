@@ -1,10 +1,11 @@
+import 'dart:convert';
+
 import 'package:agrotech_hacakaton/screens/batches/batches_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class JournalScreen extends StatefulWidget {
-  final Batch batch; // Получаем выбранную партию
+  final Batch batch;
 
   JournalScreen({required this.batch});
 
@@ -14,22 +15,17 @@ class JournalScreen extends StatefulWidget {
 
 class _JournalScreenState extends State<JournalScreen> {
   late List<JournalEntry> _entries;
+  late List<GrowthMeasurement> _growthMeasurements;
 
   @override
   void initState() {
     super.initState();
     _entries = widget.batch.journalEntries;
-    _saveEntries();
+    _growthMeasurements =
+        widget.batch.growthMeasurements; // Инициализируем измерения роста
   }
 
-  // Сохраняем записи в SharedPreferences
-  _saveEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final batchMap = widget.batch.toMap();
-    prefs.setString(widget.batch.id, json.encode(batchMap));
-  }
-
-  // Добавляем новую запись в журнал
+  // Добавляем новую запись в журнал и обновляем график
   _addEntry(double height, String notes) {
     final newEntry = JournalEntry(
       date: DateTime.now(),
@@ -39,28 +35,53 @@ class _JournalScreenState extends State<JournalScreen> {
 
     setState(() {
       _entries.add(newEntry);
+      // Добавляем измерение роста в график
+      _growthMeasurements.add(
+        GrowthMeasurement(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          date: DateTime.now(),
+          height: height,
+        ),
+      );
     });
 
-    // Обновляем записи в batch
-    widget.batch.journalEntries.add(newEntry);
-    _saveEntries();
+    // После обновления данных, можно обновить график
+    _updateGraph();
+  }
+
+  // Обновление графика (можно использовать зависимости от библиотеки для графиков, например, charts_flutter)
+  _updateGraph() {
+    // Логика обновления графика (например, пересоздавать график с новыми данными)
+    setState(() {
+      // Пример обновления графика
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Журнал для ${widget.batch.name}')),
-      body: ListView.builder(
-        itemCount: _entries.length,
-        itemBuilder: (context, index) {
-          final entry = _entries[index];
-          return ListTile(
-            title: Text('${entry.date.toLocal()}'),
-            subtitle: Text(
-              'Высота: ${entry.height} см, Заметки: ${entry.notes}',
+      body: Column(
+        children: [
+          // Здесь вы можете отобразить график, используя _growthMeasurements
+          Expanded(
+            child: ListView.builder(
+              itemCount: _entries.length,
+              itemBuilder: (context, index) {
+                final entry = _entries[index];
+                return ListTile(
+                  title: Text('${entry.date.toLocal()}'),
+                  subtitle: Text(
+                    'Высота: ${entry.height} см, Заметки: ${entry.notes}',
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          // Пример отображения графика с использованием _growthMeasurements
+          // Например, для отображения графика с помощью charts_flutter:
+          // charts_flutter.ChartWidget(data: _growthMeasurements),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -108,12 +129,20 @@ class _JournalScreenState extends State<JournalScreen> {
             final notes = result[1];
 
             if (height != null) {
-              _addEntry(height, notes);
+              _addEntry(height, notes); // Добавляем запись в журнал
             }
           }
         },
         child: Icon(Icons.add),
       ),
     );
+  }
+
+  // Логика для добавления новой записи
+
+  _saveEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final batchMap = widget.batch.toMap();
+    prefs.setString(widget.batch.id, json.encode(batchMap));
   }
 }

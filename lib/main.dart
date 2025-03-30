@@ -1,3 +1,4 @@
+import 'package:agrotech_hacakaton/auth_wrapper.dart';
 import 'package:agrotech_hacakaton/screens/auth/login_screen.dart';
 import 'package:agrotech_hacakaton/screens/auth/register_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -57,22 +58,21 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'AgroTech App',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
           locale: themeProvider.locale,
           routes: {
             '/login': (context) => LoginScreen(),
-            '/register': (context) => RegisterScreen(), // Добавляем маршрут
-            '/home': (context) => BatchesScreen(),
+            '/register': (context) => RegisterScreen(),
+            '/home': (context) => const MainNavigation(),
           },
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: const MainNavigation(),
+          home: const AuthWrapper(),
         );
       },
     );
@@ -103,26 +103,16 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<User?>(
-      builder: (context, user, _) {
-        if (user == null) {
-          // Если пользователь не авторизован, показываем экран логина
-          return LoginScreen();
-        } else {
-          // Если пользователь авторизован, показываем основной экран
-          return Scaffold(
-            body: _screens[_currentIndex],
-            bottomNavigationBar: BottomNavBar(
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-            ),
-          );
-        }
-      },
+    return Scaffold(
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+      ),
     );
   }
 }
