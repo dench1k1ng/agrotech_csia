@@ -1,11 +1,9 @@
-import 'package:agrotech_hacakaton/screens/batches/batch_detail_screen.dart';
-import 'package:agrotech_hacakaton/screens/journal/journal_screen.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
-import 'dart:convert';
+import 'package:agrotech_hacakaton/screens/batches/batch_detail_screen.dart';
 import 'package:agrotech_hacakaton/screens/batches/add_batch_screen.dart';
+import 'dart:io';
 
 class BatchesScreen extends StatefulWidget {
   @override
@@ -13,6 +11,9 @@ class BatchesScreen extends StatefulWidget {
 }
 
 class _BatchesScreenState extends State<BatchesScreen> {
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref(
+    'batches',
+  );
   List<Batch> _batches = [];
   bool _isLoading = true;
   String? _error;
@@ -30,37 +31,51 @@ class _BatchesScreenState extends State<BatchesScreen> {
         _error = null;
       });
 
-      final prefs = await SharedPreferences.getInstance();
-      final savedBatches = prefs.getString('batches');
-
-      if (savedBatches != null) {
-        final decoded = json.decode(savedBatches) as List;
-        setState(() {
-          _batches = decoded.map((item) => Batch.fromMap(item)).toList();
-        });
-      }
+      _databaseRef.onValue.listen(
+        (DatabaseEvent event) {
+          final data = event.snapshot.value;
+          if (data != null) {
+            final batchesMap = Map<String, dynamic>.from(data as Map);
+            setState(() {
+              _batches =
+                  batchesMap.entries.map((entry) {
+                    return Batch.fromMap(entry.value)
+                      ..id = entry.key; // Set the Firebase key as ID
+                  }).toList();
+              _isLoading = false;
+            });
+          } else {
+            setState(() {
+              _batches = [];
+              _isLoading = false;
+            });
+          }
+        },
+        onError: (error) {
+          setState(() {
+            _error = 'Ошибка загрузки данных';
+            _isLoading = false;
+          });
+        },
+      );
     } catch (e) {
       setState(() {
         _error = 'Ошибка загрузки данных';
+        _isLoading = false;
       });
       debugPrint('Error loading batches: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
   }
 
   Future<void> _addBatch(Batch newBatch) async {
     try {
-      setState(() {
-        _batches.add(newBatch);
-      });
-      await _saveBatches();
+      final newRef = _databaseRef.push();
+      await newRef.set(newBatch.toMap());
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка при добавлении: ${e.toString()}')),
       );
+      rethrow;
     }
   }
 
@@ -70,51 +85,28 @@ class _BatchesScreenState extends State<BatchesScreen> {
       setState(() {
         _batches.removeAt(index);
       });
-      await _saveBatches();
+      await _databaseRef.child(removedBatch.id!).remove();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Партия "${removedBatch.name}" удалена'),
           action: SnackBarAction(
             label: 'Отменить',
             onPressed: () async {
-              setState(() => _batches.insert(index, removedBatch));
-              await _saveBatches();
+              await _databaseRef
+                  .child(removedBatch.id!)
+                  .set(removedBatch.toMap());
             },
           ),
         ),
       );
     } catch (e) {
+      setState(() {
+        _batches.insert(index, removedBatch);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка при удалении: ${e.toString()}')),
       );
-    }
-  }
-
-  Future<void> _saveBatches() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'batches',
-        json.encode(_batches.map((batch) => batch.toMap()).toList()),
-      );
-    } catch (e) {
-      debugPrint('Error saving batches: $e');
-    }
-  }
-
-  Future<void> _navigateToAddBatch() async {
-    // Переход на экран добавления новой партии и получение данных
-    final newBatch = await Navigator.push<Map<String, dynamic>>(
-      context,
-      MaterialPageRoute(builder: (context) => AddBatchScreen()),
-    );
-
-    // Если данные возвращены, добавляем партию
-    if (newBatch != null) {
-      final batch = Batch.fromMap(
-        newBatch,
-      ); // Преобразуем данные в объект Batch
-      await _addBatch(batch); // Добавляем партию в список
     }
   }
 
@@ -147,6 +139,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+
     if (_error != null) {
       return Center(
         child: Column(
@@ -162,6 +155,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
         ),
       );
     }
+
     if (_batches.isEmpty) {
       return Center(
         child: Column(
@@ -176,6 +170,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
         ),
       );
     }
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: GridView.builder(
@@ -196,7 +191,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
 
   Widget _buildBatchCard(Batch batch, int index) {
     return Dismissible(
-      key: Key(batch.id),
+      key: Key(batch.id!),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -207,7 +202,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
       confirmDismiss: (direction) => _confirmDismiss(index),
       onDismissed: (_) => _removeBatch(index),
       child: GestureDetector(
-        onTap: () => _navigateToDetailScreen(context, batch), // Передаем Batch
+        onTap: () => _navigateToDetailScreen(context, batch),
         child: Card(
           elevation: 3,
           shape: RoundedRectangleBorder(
@@ -216,7 +211,6 @@ class _BatchesScreenState extends State<BatchesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Изображение
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -246,7 +240,6 @@ class _BatchesScreenState extends State<BatchesScreen> {
                           : null,
                 ),
               ),
-              // Информация
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -307,22 +300,23 @@ class _BatchesScreenState extends State<BatchesScreen> {
     );
   }
 
-  Future<void> _navigateToDetailScreen(
-    BuildContext context,
-    Batch batch,
-  ) async {
-    try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BatchDetailScreen(batch: batch),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка навигации: ${e.toString()}')),
-      );
+  Future<void> _navigateToAddBatch() async {
+    final newBatchData = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (context) => AddBatchScreen()),
+    );
+
+    if (newBatchData != null) {
+      final newBatch = Batch.fromMap(newBatchData);
+      await _addBatch(newBatch);
     }
+  }
+
+  void _navigateToDetailScreen(BuildContext context, Batch batch) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => BatchDetailScreen(batch: batch)),
+    );
   }
 
   Future<bool?> _confirmDismiss(int index) async {
@@ -375,21 +369,16 @@ class _BatchesScreenState extends State<BatchesScreen> {
     );
 
     if (confirmed == true) {
-      setState(() => _batches.clear());
-      await _saveBatches();
-    }
-  }
-
-  void _navigateToJournal(Batch batch) {
-    try {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => JournalScreen(batch: batch)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка навигации: ${e.toString()}')),
-      );
+      try {
+        await _databaseRef.remove();
+        setState(() {
+          _batches.clear();
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка при очистке: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -401,23 +390,22 @@ class _BatchesScreenState extends State<BatchesScreen> {
 }
 
 class Batch {
-  final String id;
+  String? id; // Made nullable and mutable for Firebase key assignment
   final String name;
   final String date;
   final String status;
   final String location;
   final String quantity;
-  final String? imagePath; // Путь к изображению
-  final List<JournalEntry> journalEntries; // Записи журнала
-  final double initialHeight; // Начальная высота
-  final String specialConditions; // Особые условия
+  final String? imagePath;
+  final List<JournalEntry> journalEntries;
+  final double initialHeight;
+  final String specialConditions;
   final String harvestDate;
-  final String wateringTime; // Дата полива
-  final List<GrowthMeasurement> growthMeasurements; // Измерения роста
+  final String wateringTime;
+  final List<GrowthMeasurement> growthMeasurements;
 
   Batch({
-    required this.journalEntries,
-    required this.id,
+    this.id,
     required this.name,
     required this.date,
     required this.status,
@@ -428,17 +416,13 @@ class Batch {
     required this.specialConditions,
     required this.harvestDate,
     this.imagePath,
+    required this.journalEntries,
     required this.growthMeasurements,
   });
 
   factory Batch.fromMap(Map<String, dynamic> map) {
     return Batch(
-      journalEntries:
-          (map['journalEntries'] as List<dynamic>?)
-              ?.map((e) => JournalEntry.fromMap(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      id: map['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: map['id'],
       name: map['name'] ?? 'Без названия',
       date: map['date'] ?? DateFormat('dd MMM yyyy').format(DateTime.now()),
       status: map['status'] ?? 'Новый',
@@ -449,6 +433,11 @@ class Batch {
       specialConditions: map['specialConditions'] ?? 'Нет',
       harvestDate: map['harvestDate'] ?? 'Не указано',
       imagePath: map['imagePath'],
+      journalEntries:
+          (map['journalEntries'] as List<dynamic>?)
+              ?.map((e) => JournalEntry.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       growthMeasurements:
           (map['growthMeasurements'] as List<dynamic>?)
               ?.map((e) => GrowthMeasurement.fromMap(e as Map<String, dynamic>))
@@ -459,7 +448,7 @@ class Batch {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id != null) 'id': id,
       'name': name,
       'date': date,
       'status': status,

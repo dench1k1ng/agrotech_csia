@@ -52,6 +52,7 @@ dependencies:
   cloud_firestore: ^5.6.5
   timezone: ^0.10.0
   firebase_storage: ^12.4.4
+  firebase_database: ^11.3.4
   
   
 dev_dependencies:
