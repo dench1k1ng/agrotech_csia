@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
-
-
+import 'package:intl/intl.dart';
 
 class BatchCard extends StatelessWidget {
   final String name;
@@ -125,16 +124,35 @@ class BatchCard extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor(String status) {
-    final lowerStatus = status.toLowerCase();
-    if (lowerStatus.contains('проросл')) {
-      return Colors.green;
-    } else if (lowerStatus.contains('прорастает')) {
-      return Colors.orange;
-    } else if (lowerStatus.contains('не проросл')) {
-      return Colors.red;
+  Color _getStatusColor(String? harvestDate) {
+    if (harvestDate == null || harvestDate.isEmpty) {
+      return Colors.grey; // Если дата созревания не указана
     }
-    return Colors.grey;
+
+    // Преобразуем строку в DateTime
+    DateTime harvestDateTime;
+    try {
+      harvestDateTime = DateFormat(
+        'dd MMM yyyy',
+      ).parse(harvestDate); // Преобразуем строку в DateTime
+    } catch (e) {
+      return Colors
+          .grey; // Если не удалось преобразовать строку в дату, возвращаем серый
+    }
+
+    final now = DateTime.now();
+
+    // Сравниваем текущую дату с датой созревания
+    if (harvestDateTime.isBefore(now)) {
+      return Colors.green; // Если дата созревания прошла, ставим зелёный
+    } else if (harvestDateTime.isAfter(now)) {
+      print(harvestDateTime.toString());
+      return Colors
+          .orange; // Если дата созревания ещё не наступила, ставим оранжевый
+    } else {
+      return Colors
+          .grey; // Если дата созревания невалидна или ошибка в вычислениях
+    }
   }
 
   Widget _buildBottomNavigationBar() {

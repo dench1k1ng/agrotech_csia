@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "948621901407",
+    "project_id": "agrotech-hackaton",
+    "storage_bucket": "agrotech-hackaton.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:948621901407:android:60576777ec1cd09f8ba5ea",
+        "android_client_info": {
+          "package_name": "com.example.agrotech_hacakaton"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOwiM9ExBOx_fejXStXkh72h-TqbVhizg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

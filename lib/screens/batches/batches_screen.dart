@@ -1,3 +1,4 @@
+import 'package:agrotech_hacakaton/screens/batches/batch_detail_screen.dart';
 import 'package:agrotech_hacakaton/screens/journal/journal_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -209,7 +210,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
       ),
       confirmDismiss: (direction) => _confirmDismiss(index),
       child: GestureDetector(
-        onTap: () => _navigateToJournal(batch),
+        onTap: () => _navigateToDetailScreen(context, batch), // Передаем Batch
         child: Card(
           elevation: 3,
           shape: RoundedRectangleBorder(
@@ -308,6 +309,17 @@ class _BatchesScreenState extends State<BatchesScreen> {
     );
   }
 
+  void _navigateToDetailScreen(BuildContext context, Batch batch) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) =>
+                BatchDetailScreen(batch: batch), // Передаем объект Batch
+      ),
+    );
+  }
+
   Future<bool?> _confirmDismiss(int index) async {
     return await showDialog<bool>(
       context: context,
@@ -366,7 +378,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
   void _navigateToJournal(Batch batch) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => BatchJournalScreen(batch: batch)),
+      MaterialPageRoute(builder: (context) => JournalScreen(batch: batch)),
     );
   }
 
@@ -382,37 +394,49 @@ class Batch {
   final String name;
   final String date;
   final String status;
-  final String? imagePath;
-  final List<JournalEntry> journalEntries;
-  final List<GrowthMeasurement> measurements;
+  final String location;
+  final String quantity;
+  final String? imagePath; // Путь к изображению
+  final List<JournalEntry> journalEntries; // Записи журнала
+  final double initialHeight; // Начальная высота
+  final String specialConditions; // Особые условия
+  final String harvestDate;
+
+  var wateringTime; // Дата созревания
 
   Batch({
+    required this.journalEntries,
     required this.id,
     required this.name,
     required this.date,
     required this.status,
+    required this.location,
+    required this.quantity,
+    required this.wateringTime,
+    required this.initialHeight,
+    required this.specialConditions,
+    required this.harvestDate,
     this.imagePath,
-    this.journalEntries = const [],
-    this.measurements = const [],
   });
 
   factory Batch.fromMap(Map<String, dynamic> map) {
     return Batch(
+      journalEntries:
+          (map['journalEntries'] as List<dynamic>?)
+              ?.map((e) => JournalEntry.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       id: map['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: map['name'] ?? 'Без названия',
       date: map['date'] ?? DateFormat('dd MMM yyyy').format(DateTime.now()),
       status: map['status'] ?? 'Новый',
+      location: map['location'] ?? 'Не указано',
+      quantity: map['quantity'] ?? '0',
+      wateringTime: map['wateringTime'] ?? 'Не указано',
+      initialHeight: (map['initialHeight'] as num?)?.toDouble() ?? 0.0,
+      specialConditions: map['specialConditions'] ?? 'Нет',
+      harvestDate: map['harvestDate'] ?? 'Не указано',
       imagePath: map['imagePath'],
-      journalEntries:
-          (map['journalEntries'] as List?)
-              ?.map((e) => JournalEntry.fromMap(e))
-              .toList() ??
-          [],
-      measurements:
-          (map['measurements'] as List?)
-              ?.map((e) => GrowthMeasurement.fromMap(e))
-              .toList() ??
-          [],
     );
   }
 
@@ -420,44 +444,30 @@ class Batch {
     return {
       'id': id,
       'name': name,
-      'date': date,
-      'status': status,
+      'journalEntries': journalEntries.map((e) => e.toMap()).toList(),
       'imagePath': imagePath,
       'journalEntries': journalEntries.map((e) => e.toMap()).toList(),
-      'measurements': measurements.map((e) => e.toMap()).toList(),
     };
   }
 }
 
 class JournalEntry {
-  final String id;
   final DateTime date;
-  final String description;
-  final String? imagePath;
+  final double height;
+  final String notes;
 
-  JournalEntry({
-    required this.id,
-    required this.date,
-    required this.description,
-    this.imagePath,
-  });
+  JournalEntry({required this.date, required this.height, required this.notes});
 
   factory JournalEntry.fromMap(Map<String, dynamic> map) {
     return JournalEntry(
-      id: map['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
       date: DateTime.parse(map['date']),
-      description: map['description'] ?? '',
-      imagePath: map['imagePath'],
+      height: map['height'],
+      notes: map['notes'],
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'date': date.toIso8601String(),
-      'description': description,
-      'imagePath': imagePath,
-    };
+    return {'date': date.toIso8601String(), 'height': height, 'notes': notes};
   }
 }
 

@@ -1,4 +1,3 @@
-import 'package:agrotech_hacakaton/core/localization/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class BottomNavBar extends StatelessWidget {
@@ -13,22 +12,18 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final local = AppLocalizations.of(context);
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
       items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.home),
-          label: local?.home ?? 'Home',
-        ),
+        BottomNavigationBarItem(icon: const Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(
           icon: const Icon(Icons.person),
-          label: local?.profile ?? 'Profile',
+          label: 'Profile',
         ),
         BottomNavigationBarItem(
           icon: const Icon(Icons.settings),
-          label: local?.settings ?? 'Settings',
+          label: 'Settings',
         ),
       ],
     );

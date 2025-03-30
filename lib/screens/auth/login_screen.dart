@@ -1,5 +1,6 @@
-import 'package:agrotech_hacakaton/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:agrotech_hacakaton/services/auth/auth_service.dart';
+import 'register_screen.dart'; // Экран для регистрации
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -40,53 +41,37 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Вход'), backgroundColor: Colors.green[700]),
+      appBar: AppBar(title: Text('Вход')),
       body: Padding(
-        padding: EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Логотип или иконка
-            Icon(Icons.eco, size: 120, color: Colors.green[700]),
-            SizedBox(height: 40),
-
-            // Поле ввода электронной почты с иконкой
-            _buildTextField(
+            TextField(
               controller: _emailController,
-              label: 'Электронная почта',
-              icon: Icons.email,
-              obscureText: false,
+              decoration: InputDecoration(labelText: 'Электронная почта'),
             ),
-
-            SizedBox(height: 20),
-
-            // Поле ввода пароля с иконкой
-            _buildTextField(
+            TextField(
               controller: _passwordController,
-              label: 'Пароль',
-              icon: Icons.lock,
+              decoration: InputDecoration(labelText: 'Пароль'),
               obscureText: true,
             ),
-
-            SizedBox(height: 30),
-
-            // Кнопка входа
+            SizedBox(height: 20),
             _isLoading
                 ? CircularProgressIndicator()
                 : ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[700],
-                    padding: EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                    minimumSize: Size(double.infinity, 60),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    shadowColor: Colors.green[500],
+                    elevation: 10,
                   ),
                   child: Text('Войти', style: TextStyle(fontSize: 18)),
                 ),
-
-            // Сообщение об ошибке
             if (_errorMessage.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -95,31 +80,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(color: Colors.red, fontSize: 16),
                 ),
               ),
+            SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => RegisterScreen()),
+                );
+              },
+              child: Text('Впервые? Создайте аккаунт'),
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  // Метод для создания текстовых полей с иконками
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required bool obscureText,
-  }) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: Colors.green[700]),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.green[700]!),
-        ),
-      ),
-      obscureText: obscureText,
     );
   }
 }

@@ -1,97 +1,118 @@
-import 'dart:io';
-
 import 'package:agrotech_hacakaton/screens/batches/batches_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:agrotech_hacakaton/data/batches_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
-// Пример модели данных для записи в журнале
-class JournalEntry {
-  final DateTime date;
-  final String description;
-  final String? imagePath;
+class JournalScreen extends StatefulWidget {
+  final Batch batch; // Получаем выбранную партию
 
-  JournalEntry({required this.date, required this.description, this.imagePath});
+  JournalScreen({required this.batch});
+
+  @override
+  _JournalScreenState createState() => _JournalScreenState();
 }
 
-// Пример экрана журнала
-class JournalScreen extends StatelessWidget {
+class _JournalScreenState extends State<JournalScreen> {
+  late List<JournalEntry> _entries;
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Журнал наблюдений')),
-      body:
-          batches.isEmpty
-              ? const Center(child: Text('Нет добавленных партий'))
-              : ListView.builder(
-                itemCount: batches.length,
-                itemBuilder: (ctx, index) {
-                  final batchData = batches[index];
-                  final batch = Batch.fromMap(
-                    batchData,
-                  ); // Convert Map to Batch
-                  return ListTile(
-                    title: Text(batch.name),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => BatchJournalScreen(batch: batch),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-    );
+  void initState() {
+    super.initState();
+    _entries = widget.batch.journalEntries;
+    _saveEntries();
   }
-}
 
-// Экран журнала для конкретной партии
-class BatchJournalScreen extends StatefulWidget {
-  final Batch batch; // ✅ Исправлено с Match на Batch
+  // Сохраняем записи в SharedPreferences
+  _saveEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final batchMap = widget.batch.toMap();
+    prefs.setString(widget.batch.id, json.encode(batchMap));
+  }
 
-  const BatchJournalScreen({required this.batch});
+  // Добавляем новую запись в журнал
+  _addEntry(double height, String notes) {
+    final newEntry = JournalEntry(
+      date: DateTime.now(),
+      height: height,
+      notes: notes,
+    );
 
-  @override
-  _BatchJournalScreenState createState() => _BatchJournalScreenState();
-}
+    setState(() {
+      _entries.add(newEntry);
+    });
 
-class _BatchJournalScreenState extends State<BatchJournalScreen> {
+    // Обновляем записи в batch
+    widget.batch.journalEntries.add(newEntry);
+    _saveEntries();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.batch.name)),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: widget.batch.journalEntries.length,
-              itemBuilder: (ctx, index) {
-                final entry = widget.batch.journalEntries[index];
-                return ListTile(
-                  title: Text(entry.description),
-                  subtitle: Text("${entry.date.toLocal()}".split(' ')[0]),
-                  leading:
-                      entry.imagePath != null
-                          ? Image.file(
-                            File(entry.imagePath!),
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                          )
-                          : Icon(Icons.notes),
-                );
-              },
+      appBar: AppBar(title: Text('Журнал для ${widget.batch.name}')),
+      body: ListView.builder(
+        itemCount: _entries.length,
+        itemBuilder: (context, index) {
+          final entry = _entries[index];
+          return ListTile(
+            title: Text('${entry.date.toLocal()}'),
+            subtitle: Text(
+              'Высота: ${entry.height} см, Заметки: ${entry.notes}',
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: Реализация добавления записи в журнал
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // Окно для добавления новой записи
+          final result = await showDialog<List<String>>(
+            context: context,
+            builder: (context) {
+              final heightController = TextEditingController();
+              final notesController = TextEditingController();
+              return AlertDialog(
+                title: Text('Добавить запись'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: heightController,
+                      decoration: InputDecoration(labelText: 'Высота растения'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    TextField(
+                      controller: notesController,
+                      decoration: InputDecoration(labelText: 'Заметки'),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      final height = double.tryParse(heightController.text);
+                      if (height != null) {
+                        Navigator.of(
+                          context,
+                        ).pop([heightController.text, notesController.text]);
+                      }
+                    },
+                    child: Text('Добавить'),
+                  ),
+                ],
+              );
             },
-            child: Text("Добавить запись"),
-          ),
-        ],
+          );
+
+          if (result != null && result.isNotEmpty) {
+            final height = double.tryParse(result[0]);
+            final notes = result[1];
+
+            if (height != null) {
+              _addEntry(height, notes);
+            }
+          }
+        },
+        child: Icon(Icons.add),
       ),
     );
   }

@@ -1,25 +1,51 @@
 import 'package:agrotech_hacakaton/screens/auth/login_screen.dart';
-import 'package:agrotech_hacakaton/services/auth/auth_service.dart';
+import 'package:agrotech_hacakaton/screens/auth/register_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'core/localization/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
-import 'screens/home/home_screen.dart';
 import 'screens/batches/batches_screen.dart';
 import 'screens/graph/grow_chart_screen.dart' as graph;
-import 'screens/journal/journal_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'widgets/bottom_nav_bar.dart';
 import 'core/theme/app_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-void main() {
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => ThemeProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        // StreamProvider для отслеживания состояния пользователя Firebase
+        StreamProvider<User?>(
+          create:
+              (_) =>
+                  FirebaseAuth.instance
+                      .authStateChanges(), // Поток изменений состояния пользователя
+          initialData:
+              null, // Начальные данные, если пользователь не авторизован
+        ),
+      ],
       child: const MyApp(),
     ),
   );
+}
+
+// Инициализация уведомлений
+Future<void> initializeNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('app_icon');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
 
 class MyApp extends StatelessWidget {
@@ -38,11 +64,10 @@ class MyApp extends StatelessWidget {
           locale: themeProvider.locale,
           routes: {
             '/login': (context) => LoginScreen(),
+            '/register': (context) => RegisterScreen(), // Добавляем маршрут
             '/home': (context) => BatchesScreen(),
           },
-          supportedLocales: const [Locale('en'), Locale('ru')],
           localizationsDelegates: const [
-            AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
@@ -73,19 +98,18 @@ class _MainNavigationState extends State<MainNavigation> {
         graph.GrowthMeasurement(date: DateTime(2023, 6, 15), height: 6.0),
       ],
     ),
-    JournalScreen(),
+    SettingsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: AuthService().isAuthenticated(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.data == true) {
+    return Consumer<User?>(
+      builder: (context, user, _) {
+        if (user == null) {
+          // Если пользователь не авторизован, показываем экран логина
+          return LoginScreen();
+        } else {
+          // Если пользователь авторизован, показываем основной экран
           return Scaffold(
             body: _screens[_currentIndex],
             bottomNavigationBar: BottomNavBar(
@@ -97,8 +121,6 @@ class _MainNavigationState extends State<MainNavigation> {
               },
             ),
           );
-        } else {
-          return LoginScreen(); // Показываем экран логина, если пользователь не авторизован
         }
       },
     );
