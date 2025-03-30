@@ -1,13 +1,12 @@
-import 'dart:convert';
-
 import 'package:agrotech_hacakaton/screens/batches/batches_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 class JournalScreen extends StatefulWidget {
   final Batch batch;
 
-  JournalScreen({required this.batch});
+  const JournalScreen({required this.batch, Key? key}) : super(key: key);
 
   @override
   _JournalScreenState createState() => _JournalScreenState();
@@ -20,129 +19,207 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   void initState() {
     super.initState();
-    _entries = widget.batch.journalEntries;
-    _growthMeasurements =
-        widget.batch.growthMeasurements; // Инициализируем измерения роста
+    _entries = List.from(widget.batch.journalEntries);
+    _growthMeasurements = List.from(widget.batch.growthMeasurements);
   }
 
-  // Добавляем новую запись в журнал и обновляем график
-  _addEntry(double height, String notes) {
+  void _addEntry(double height, String notes) {
     final newEntry = JournalEntry(
       date: DateTime.now(),
       height: height,
       notes: notes,
     );
 
+    final newMeasurement = GrowthMeasurement(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      date: DateTime.now(),
+      height: height,
+    );
+
     setState(() {
       _entries.add(newEntry);
-      // Добавляем измерение роста в график
-      _growthMeasurements.add(
-        GrowthMeasurement(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          date: DateTime.now(),
-          height: height,
-        ),
-      );
+      _growthMeasurements.add(newMeasurement);
     });
-
-    // После обновления данных, можно обновить график
-    _updateGraph();
   }
 
-  // Обновление графика (можно использовать зависимости от библиотеки для графиков, например, charts_flutter)
-  _updateGraph() {
-    // Логика обновления графика (например, пересоздавать график с новыми данными)
-    setState(() {
-      // Пример обновления графика
-    });
+  void _showAddEntryDialog() async {
+    final heightController = TextEditingController();
+    final notesController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Добавить запись'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: heightController,
+                  decoration: const InputDecoration(
+                    labelText: 'Высота растения (см)',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Заметки'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () {
+                  if (heightController.text.isNotEmpty) {
+                    Navigator.pop(context, true);
+                  }
+                },
+                child: const Text('Добавить'),
+              ),
+            ],
+          ),
+    );
+
+    if (result == true) {
+      final height = double.tryParse(heightController.text) ?? 0.0;
+      final notes = notesController.text;
+      _addEntry(height, notes);
+    }
+  }
+
+  Widget _buildGrowthChart() {
+    if (_growthMeasurements.isEmpty) {
+      return const Center(child: Text('Нет данных для построения графика'));
+    }
+
+    // Сортируем измерения по дате
+    _growthMeasurements.sort((a, b) => a.date.compareTo(b!.date));
+
+    return SizedBox(
+      height: 250,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(show: true),
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    if (value.toInt() < _growthMeasurements.length) {
+                      final date = _growthMeasurements[value.toInt()].date;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          DateFormat('dd.MM').format(date),
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      );
+                    }
+                    return const Text('');
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    return Text('${value.toInt()} см');
+                  },
+                ),
+              ),
+            ),
+            borderData: FlBorderData(show: true),
+            minX: 0,
+            maxX:
+                _growthMeasurements.length > 1
+                    ? (_growthMeasurements.length - 1).toDouble()
+                    : 1,
+            minY: 0,
+            maxY:
+                _growthMeasurements.fold(
+                  0.0,
+                  (max, m) => m.height > max ? m.height : max,
+                ) +
+                5,
+            lineBarsData: [
+              LineChartBarData(
+                spots:
+                    _growthMeasurements.asMap().entries.map((entry) {
+                      return FlSpot(entry.key.toDouble(), entry.value.height);
+                    }).toList(),
+                isCurved: true,
+                color: Colors.green,
+                barWidth: 3,
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: Colors.green.withOpacity(0.3),
+                ),
+                dotData: FlDotData(show: true),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Журнал для ${widget.batch.name}')),
+      appBar: AppBar(title: Text('Журнал: ${widget.batch.name}')),
       body: Column(
         children: [
-          // Здесь вы можете отобразить график, используя _growthMeasurements
+          _buildGrowthChart(),
+          const Divider(),
           Expanded(
             child: ListView.builder(
               itemCount: _entries.length,
               itemBuilder: (context, index) {
                 final entry = _entries[index];
                 return ListTile(
-                  title: Text('${entry.date.toLocal()}'),
-                  subtitle: Text(
-                    'Высота: ${entry.height} см, Заметки: ${entry.notes}',
+                  title: Text(
+                    DateFormat('dd.MM.yyyy HH:mm').format(entry.date),
                   ),
+                  subtitle: Text('Высота: ${entry.height} см'),
+                  trailing:
+                      entry.notes.isNotEmpty
+                          ? IconButton(
+                            icon: const Icon(Icons.note),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder:
+                                    (context) => AlertDialog(
+                                      title: const Text('Заметки'),
+                                      content: Text(entry.notes),
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.pop(context),
+                                          child: const Text('Закрыть'),
+                                        ),
+                                      ],
+                                    ),
+                              );
+                            },
+                          )
+                          : null,
                 );
               },
             ),
           ),
-          // Пример отображения графика с использованием _growthMeasurements
-          // Например, для отображения графика с помощью charts_flutter:
-          // charts_flutter.ChartWidget(data: _growthMeasurements),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // Окно для добавления новой записи
-          final result = await showDialog<List<String>>(
-            context: context,
-            builder: (context) {
-              final heightController = TextEditingController();
-              final notesController = TextEditingController();
-              return AlertDialog(
-                title: Text('Добавить запись'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: heightController,
-                      decoration: InputDecoration(labelText: 'Высота растения'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    TextField(
-                      controller: notesController,
-                      decoration: InputDecoration(labelText: 'Заметки'),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      final height = double.tryParse(heightController.text);
-                      if (height != null) {
-                        Navigator.of(
-                          context,
-                        ).pop([heightController.text, notesController.text]);
-                      }
-                    },
-                    child: Text('Добавить'),
-                  ),
-                ],
-              );
-            },
-          );
-
-          if (result != null && result.isNotEmpty) {
-            final height = double.tryParse(result[0]);
-            final notes = result[1];
-
-            if (height != null) {
-              _addEntry(height, notes); // Добавляем запись в журнал
-            }
-          }
-        },
-        child: Icon(Icons.add),
+        onPressed: _showAddEntryDialog,
+        child: const Icon(Icons.add),
       ),
     );
-  }
-
-  // Логика для добавления новой записи
-
-  _saveEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final batchMap = widget.batch.toMap();
-    prefs.setString(widget.batch.id, json.encode(batchMap));
   }
 }

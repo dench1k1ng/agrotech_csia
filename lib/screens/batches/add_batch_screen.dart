@@ -1,6 +1,4 @@
 import 'package:agrotech_hacakaton/main.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -172,35 +170,6 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
-
-  void getData() async {
-    DataSnapshot snapshot = await _databaseRef.child("batches").get();
-    if (snapshot.exists) {
-      print('Data: ${snapshot.value}');
-    } else {
-      print('No data available');
-    }
-  }
-
-  void writeData() {
-    _databaseRef.child("batches").set({
-      'batch1': {'name': 'Batch 1', 'quantity': 10, 'status': 'Growing'},
-      'batch2': {'name': 'Batch 2', 'quantity': 5, 'status': 'Ready'},
-    });
-  }
-
-  Future<String> uploadImage(File image) async {
-    final storageRef = FirebaseStorage.instance.ref();
-    final imagesRef = storageRef.child(
-      'batch_images/${DateTime.now().millisecondsSinceEpoch}',
-    );
-    final uploadTask = imagesRef.putFile(image);
-    final taskSnapshot = await uploadTask.whenComplete(() {});
-    final downloadUrl = await taskSnapshot.ref.getDownloadURL();
-    return downloadUrl;
   }
 
   @override
